@@ -155,12 +155,13 @@ flutter pub get
 flutter analyze
 flutter test
 ```
-São 39 testes, cobrindo:
+São 49 testes, cobrindo:
 - o parser de cupons (linha única, unidade antes da quantidade, itens a granel, atacarejo em 2 linhas,
   correção de "O"→"0" e reconstrução de colunas do OCR);
 - relatórios, categorias e formatação;
 - lembretes e "Montar compra do mês" (datas, planejador e texto da notificação);
 - documentos legais (leitura e variáveis preenchidas);
+- tela de login: sem rolagem e sem estouro em 320, 360, 390 e 412 dp, fonte ampliada e folha de e-mail;
 - teste de fumaça do paywall, incluindo tela pequena com fonte ampliada.
 
 ### 5. Modo demonstração (sem Firebase)

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -8,15 +9,20 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../widgets/common_widgets.dart';
-import '../../widgets/glass_card.dart';
 import '../../widgets/gradient_background.dart';
 import '../legal/legal_view.dart';
+import 'email_auth_sheet.dart';
+import 'login_hero.dart';
 
-/// Login e Cadastro.
+/// Tela de entrada: **uma tela só, sem rolagem**.
 ///
-/// Ordem pensada para todas as idades: primeiro o botão do Google (um toque,
-/// sem senha para lembrar), depois e-mail e senha. Campos grandes, rótulos
-/// sempre visíveis e mensagens de erro em português claro.
+/// - Topo: marca + mini-demonstração viva (nota → despensa) que se escala
+///   para caber em qualquer altura de celular.
+/// - Base: três ações claras: Google (1 toque), e-mail (abre uma folha) e
+///   criar conta.
+///
+/// Só em casos extremos (aparelho deitado ou altura < 520 dp) a tela vira
+/// rolável, para nada ficar inacessível.
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
 
@@ -24,287 +30,107 @@ class LoginView extends StatefulWidget {
   State<LoginView> createState() => _LoginViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
-  final _formKey = GlobalKey<FormState>();
-  final _name = TextEditingController();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
+class _LoginViewState extends State<LoginView>
+    with SingleTickerProviderStateMixin {
+  /// Controla a entrada escalonada dos blocos.
+  late final AnimationController _intro = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..forward();
 
-  bool _isRegister = false;
-  bool _obscure = true;
+  late final Animation<double> _topIn = _interval(0.00, 0.45);
+  late final Animation<double> _heroIn = _interval(0.12, 0.65);
+  late final Animation<double> _panelIn = _interval(0.35, 1.00);
 
-  @override
-  void initState() {
-    super.initState();
-    _password.addListener(() {
-      if (_isRegister) setState(() {}); // atualiza o medidor de força
-    });
-  }
+  bool _sheetOpen = false;
+
+  Animation<double> _interval(double a, double b) => CurvedAnimation(
+    parent: _intro,
+    curve: Interval(a, b, curve: Curves.easeOutCubic),
+  );
 
   @override
   void dispose() {
-    _name.dispose();
-    _email.dispose();
-    _password.dispose();
+    _intro.dispose();
     super.dispose();
   }
 
-  void _toggleMode() {
-    context.read<AuthViewModel>().clearError();
-    _formKey.currentState?.reset();
-    setState(() => _isRegister = !_isRegister);
-  }
-
-  Future<void> _submit() async {
-    FocusScope.of(context).unfocus();
-    if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthViewModel>();
-    if (_isRegister) {
-      await auth.register(_name.text, _email.text, _password.text);
-    } else {
-      await auth.signIn(_email.text, _password.text);
-    }
-  }
-
-  Future<void> _forgotPassword() async {
-    final controller = TextEditingController(text: _email.text.trim());
-    final auth = context.read<AuthViewModel>();
-    final email = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.lock_reset_rounded, size: 40),
-        title: const Text('Recuperar senha'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Digite o e-mail da sua conta. Enviaremos um link para você '
-              'criar uma nova senha.',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.emailAddress,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Seu e-mail',
-                prefixIcon: Icon(Icons.mail_outline_rounded),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size(120, 48)),
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Enviar link'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (email == null || email.trim().isEmpty) return;
-
-    final error = await auth.sendPasswordReset(email);
-    if (!mounted) return;
-    showAppSnack(
-      context,
-      error ?? 'Pronto! Confira sua caixa de entrada (e o spam).',
-      icon: error == null ? Icons.mark_email_read_rounded : Icons.error_rounded,
-    );
+  Future<void> _openEmail({required bool register}) async {
+    HapticFeedback.selectionClick();
+    setState(() => _sheetOpen = true);
+    await EmailAuthSheet.show(context, register: register);
+    if (mounted) setState(() => _sheetOpen = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthViewModel>();
+    final dark = context.isDark;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: GradientBackground(
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Column(
-                  children: [
-                    const _Hero(),
-                    const SizedBox(height: 22),
-                    GlassCard(
-                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 14),
-                      radius: AppTheme.radiusL,
-                      child: AutofillGroup(
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 250),
-                                child: Text(
-                                  _isRegister ? 'Criar conta grátis' : 'Entrar',
-                                  key: ValueKey(_isRegister),
-                                  style: context.text.titleLarge,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              _GoogleButton(
-                                label: _isRegister
-                                    ? 'Cadastrar com Google'
-                                    : 'Continuar com Google',
-                                onPressed: auth.busy
-                                    ? null
-                                    : () => auth.signInWithGoogle(),
-                              ),
-                              const SizedBox(height: 18),
-                              const _OrDivider(text: 'ou use seu e-mail'),
-                              const SizedBox(height: 18),
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 250),
-                                curve: Curves.easeOutCubic,
-                                child: _isRegister
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 14,
-                                        ),
-                                        child: TextFormField(
-                                          controller: _name,
-                                          textCapitalization:
-                                              TextCapitalization.words,
-                                          textInputAction: TextInputAction.next,
-                                          autofillHints: const [
-                                            AutofillHints.name,
-                                          ],
-                                          decoration: const InputDecoration(
-                                            labelText: 'Seu nome',
-                                            prefixIcon: Icon(
-                                              Icons.person_outline_rounded,
-                                            ),
-                                          ),
-                                          validator: (v) =>
-                                              (v == null || v.trim().length < 2)
-                                              ? 'Informe seu nome'
-                                              : null,
-                                        ),
-                                      )
-                                    : const SizedBox(width: double.infinity),
-                              ),
-                              TextFormField(
-                                controller: _email,
-                                keyboardType: TextInputType.emailAddress,
-                                textInputAction: TextInputAction.next,
-                                autocorrect: false,
-                                autofillHints: const [AutofillHints.email],
-                                decoration: const InputDecoration(
-                                  labelText: 'E-mail',
-                                  prefixIcon: Icon(Icons.mail_outline_rounded),
-                                ),
-                                validator: (v) =>
-                                    (v == null ||
-                                        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                            .hasMatch(v.trim()))
-                                    ? 'Digite um e-mail válido'
-                                    : null,
-                              ),
-                              const SizedBox(height: 14),
-                              TextFormField(
-                                controller: _password,
-                                obscureText: _obscure,
-                                textInputAction: TextInputAction.done,
-                                autofillHints: [
-                                  _isRegister
-                                      ? AutofillHints.newPassword
-                                      : AutofillHints.password,
-                                ],
-                                onFieldSubmitted: (_) => _submit(),
-                                decoration: InputDecoration(
-                                  labelText: 'Senha',
-                                  helperText: _isRegister
-                                      ? 'Mínimo de 6 caracteres'
-                                      : null,
-                                  prefixIcon: const Icon(
-                                    Icons.lock_outline_rounded,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    tooltip: _obscure
-                                        ? 'Mostrar senha'
-                                        : 'Esconder senha',
-                                    onPressed: () =>
-                                        setState(() => _obscure = !_obscure),
-                                    icon: Icon(
-                                      _obscure
-                                          ? Icons.visibility_rounded
-                                          : Icons.visibility_off_rounded,
-                                    ),
-                                  ),
-                                ),
-                                validator: (v) => (v == null || v.length < 6)
-                                    ? 'A senha precisa de pelo menos 6 caracteres'
-                                    : null,
-                              ),
-                              if (_isRegister && _password.text.isNotEmpty)
-                                _PasswordStrength(password: _password.text),
-                              if (!_isRegister)
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: _forgotPassword,
-                                    child: const Text('Esqueci minha senha'),
-                                  ),
-                                )
-                              else
-                                const SizedBox(height: 16),
-                              if (auth.error != null) ...[
-                                _ErrorBanner(message: auth.error!),
-                                const SizedBox(height: 12),
-                              ],
-                              GlowButton(
-                                label: _isRegister
-                                    ? 'Criar minha conta'
-                                    : 'Entrar',
-                                icon: _isRegister
-                                    ? Icons.person_add_alt_1_rounded
-                                    : Icons.login_rounded,
-                                loading: auth.busy,
-                                onPressed: _submit,
-                              ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                alignment: WrapAlignment.center,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    _isRegister
-                                        ? 'Já tem conta?'
-                                        : 'Ainda não tem conta?',
-                                    style: context.text.bodyMedium,
-                                  ),
-                                  TextButton(
-                                    onPressed: _toggleMode,
-                                    child: Text(
-                                      _isRegister
-                                          ? 'Entrar'
-                                          : 'Criar conta grátis',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+        child: Stack(
+          children: [
+            // Grade em perspectiva (estética "futurista").
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _GridPainter(
+                      dark ? AppColors.mint : AppColors.mintDark,
+                      dark ? 0.16 : 0.12,
                     ),
-                    const SizedBox(height: 18),
-                    const _ConsentText(),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  final compact = c.maxHeight < 520;
+
+                  final column = Column(
+                    mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Reveal(animation: _topIn, child: const _TopBar()),
+                      if (compact)
+                        SizedBox(
+                          height: 380,
+                          child: _Reveal(
+                            animation: _heroIn,
+                            child: const _HeroGroup(),
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: _Reveal(
+                            animation: _heroIn,
+                            child: const _HeroGroup(),
+                          ),
+                        ),
+                      _Reveal(
+                        animation: _panelIn,
+                        child: _ActionPanel(
+                          showError: !_sheetOpen,
+                          onEmail: () => _openEmail(register: false),
+                          onRegister: () => _openEmail(register: true),
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final padded = Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+                    child: column,
+                  );
+                  return compact
+                      ? SingleChildScrollView(child: padded)
+                      : padded;
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -312,170 +138,109 @@ class _LoginViewState extends State<LoginView> {
 }
 
 // =============================================================================
-// Topo: ilustração + proposta de valor
+// Blocos
 // =============================================================================
 
-class _Hero extends StatelessWidget {
-  const _Hero();
+class _TopBar extends StatelessWidget {
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       children: [
-        const _FloatingPantry(),
-        const SizedBox(height: 14),
-        Text.rich(
-          TextSpan(
-            children: [
-              const TextSpan(text: 'Sua despensa\n'),
-              TextSpan(
-                text: 'no controle.',
-                style: TextStyle(color: context.colors.primary),
+        const AppLogo(size: 36, showName: false),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: 'Smart '),
+                    TextSpan(
+                      text: 'Dispensa',
+                      style: TextStyle(color: context.colors.primary),
+                    ),
+                  ],
+                ),
+                style: context.text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ],
-          ),
-          textAlign: TextAlign.center,
-          style: context.text.headlineLarge?.copyWith(height: 1.15),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Escaneie a nota, saiba o que está faltando e economize no mercado.',
-          textAlign: TextAlign.center,
-          style: context.text.bodyLarge?.copyWith(
-            color: context.colors.onSurfaceVariant,
+            ),
           ),
         ),
-        const SizedBox(height: 16),
-        const Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _Benefit(emoji: '📸', text: 'Lê nota fiscal'),
-            _Benefit(emoji: '🛒', text: 'Lista automática'),
-            _Benefit(emoji: '🔔', text: 'Lembra da compra'),
-            _Benefit(emoji: '📶', text: 'Funciona offline'),
-          ],
+        const SizedBox(width: 8),
+        // O selo encolhe (e some por último) em telas muito estreitas.
+        Flexible(
+          flex: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: context.isDark ? AppColors.glassFillDark : Colors.white,
+              borderRadius: BorderRadius.circular(40),
+              border: Border.all(color: context.colors.outline),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text('✨ Grátis', style: context.text.labelMedium),
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class _Benefit extends StatelessWidget {
-  const _Benefit({required this.emoji, required this.text});
-
-  final String emoji;
-  final String text;
+/// Título + demonstração + dica, escalados juntos para caber no espaço livre.
+class _HeroGroup extends StatelessWidget {
+  const _HeroGroup();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: context.isDark ? AppColors.glassFillDark : Colors.white,
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: context.colors.outline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 6),
-          Text(text, style: context.text.labelMedium),
-        ],
-      ),
-    );
-  }
-}
-
-/// Logo central com produtos "flutuando" ao redor.
-class _FloatingPantry extends StatefulWidget {
-  const _FloatingPantry();
-
-  @override
-  State<_FloatingPantry> createState() => _FloatingPantryState();
-}
-
-class _FloatingPantryState extends State<_FloatingPantry>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 4),
-  )..repeat();
-
-  // (emoji, deslocamento x, deslocamento y, fase da flutuação)
-  static const _items = [
-    ('🥛', -96.0, -30.0, 0.0),
-    ('🍌', 94.0, -38.0, 0.25),
-    ('🧾', -62.0, 40.0, 0.6),
-    ('🥫', 70.0, 34.0, 0.5),
-    ('🧴', -150.0, 18.0, 0.8),
-    ('🍎', 146.0, 8.0, 0.35),
-  ];
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    const width = 340.0;
-    const height = 150.0;
-
-    return ExcludeSemantics(
-      child: RepaintBoundary(
-        // Em telas estreitas a ilustração encolhe em vez de ser cortada.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) => Stack(
-                alignment: Alignment.center,
-                children: [
-                  for (final (emoji, dx, dy, phase) in _items)
-                    Builder(
-                      builder: (context) {
-                        final t = reduceMotion ? 0.0 : _c.value;
-                        final bob = math.sin((t + phase) * 2 * math.pi) * 5;
-                        return Transform.translate(
-                          offset: Offset(dx, dy + bob),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: context.isDark
-                                  ? const Color(0xFF15304A)
-                                  : Colors.white,
-                              border: Border.all(color: context.colors.outline),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.18),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                          ),
-                        );
-                      },
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: 'Escaneie. Organize.\n'),
+                    TextSpan(
+                      text: 'Economize.',
+                      style: TextStyle(color: context.colors.primary),
                     ),
-                  const AppLogo(size: 84, showName: false),
-                ],
+                  ],
+                ),
+                textAlign: TextAlign.center,
+                style: context.text.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.12,
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              Text(
+                'Leia suas notas fiscais e saiba o que falta na despensa.',
+                textAlign: TextAlign.center,
+                style: context.text.bodyMedium?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const LoginHero(),
+              const SizedBox(height: 4),
+              Text(
+                '👆 Arraste ou toque no exemplo',
+                style: context.text.labelSmall,
+              ),
+              const SizedBox(height: 14),
+            ],
           ),
         ),
       ),
@@ -483,45 +248,187 @@ class _FloatingPantryState extends State<_FloatingPantry>
   }
 }
 
-// =============================================================================
-// Componentes do formulário
-// =============================================================================
+class _ActionPanel extends StatelessWidget {
+  const _ActionPanel({
+    required this.showError,
+    required this.onEmail,
+    required this.onRegister,
+  });
 
-class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback? onPressed;
+  /// `false` enquanto a folha de e-mail está aberta (ela mostra o próprio erro).
+  final bool showError;
+  final VoidCallback onEmail;
+  final VoidCallback onRegister;
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1F1F1F),
-        disabledBackgroundColor: Colors.white.withValues(alpha: 0.6),
-        minimumSize: const Size.fromHeight(AppTheme.minTouchTarget + 4),
-        side: context.isDark
-            ? BorderSide.none
-            : const BorderSide(color: Color(0xFFDADCE0)),
-        elevation: 0,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const _GoogleMark(),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              label,
-              style: context.text.titleMedium?.copyWith(
-                color: const Color(0xFF1F1F1F),
-                fontWeight: FontWeight.w700,
-              ),
+    final auth = context.watch<AuthViewModel>();
+    final dark = context.isDark;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: showError && auth.error != null
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: AuthErrorBanner(message: auth.error!),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+        _Pressable(
+          child: _GoogleButton(
+            // Spinner só quando o login Google está rodando aqui na tela.
+            loading: auth.busy && showError,
+            onPressed: auth.busy ? null : () => auth.signInWithGoogle(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _Pressable(
+          child: OutlinedButton.icon(
+            onPressed: auth.busy ? null : onEmail,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: dark
+                  ? AppColors.glassFillDark
+                  : const Color(0xB3FFFFFF),
             ),
+            icon: const Icon(Icons.mail_outline_rounded),
+            label: const Text('Entrar com e-mail'),
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Novo por aqui?', style: context.text.bodyMedium),
+            TextButton(
+              onPressed: auth.busy ? null : onRegister,
+              child: const Text('Criar conta grátis'),
+            ),
+          ],
+        ),
+        const _ConsentText(),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// Componentes
+// =============================================================================
+
+/// Entrada: sobe e aparece.
+class _Reveal extends StatelessWidget {
+  const _Reveal({required this.animation, required this.child});
+
+  final Animation<double> animation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.12),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Dá resposta visual (leve "afundar") a qualquer botão, sem tomar o toque.
+class _Pressable extends StatefulWidget {
+  const _Pressable({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<_Pressable> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (_down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => _set(true),
+      onPointerUp: (_) => _set(false),
+      onPointerCancel: (_) => _set(false),
+      child: AnimatedScale(
+        scale: _down ? 0.97 : 1,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.onPressed, required this.loading});
+
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.mint.withValues(alpha: 0.30),
+            blurRadius: 22,
+            offset: const Offset(0, 6),
           ),
         ],
+      ),
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1F1F1F),
+          disabledBackgroundColor: Colors.white.withValues(alpha: 0.65),
+          minimumSize: const Size.fromHeight(AppTheme.minTouchTarget + 4),
+          elevation: 0,
+          // No tema claro, uma borda fina separa o botão branco do fundo.
+          side: context.isDark
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFD5DCE2)),
+        ),
+        child: loading
+            ? const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _GoogleMark(),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      'Continuar com Google',
+                      style: context.text.titleMedium?.copyWith(
+                        color: const Color(0xFF1F1F1F),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -553,108 +460,6 @@ class _GoogleMark extends StatelessWidget {
   }
 }
 
-class _OrDivider extends StatelessWidget {
-  const _OrDivider({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: Divider()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(text, style: context.text.bodySmall),
-        ),
-        const Expanded(child: Divider()),
-      ],
-    );
-  }
-}
-
-class _PasswordStrength extends StatelessWidget {
-  const _PasswordStrength({required this.password});
-  final String password;
-
-  /// 0 = fraca, 1 = média, 2 = forte.
-  int get _score {
-    var points = 0;
-    if (password.length >= 8) points++;
-    if (password.length >= 12) points++;
-    if (RegExp(r'[A-Z]').hasMatch(password) &&
-        RegExp(r'[a-z]').hasMatch(password)) {
-      points++;
-    }
-    if (RegExp(r'\d').hasMatch(password)) points++;
-    if (RegExp(r'[^A-Za-z0-9]').hasMatch(password)) points++;
-    if (password.length < 6) return 0;
-    return points >= 4 ? 2 : (points >= 2 ? 1 : 0);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final score = _score;
-    final (label, color) = switch (score) {
-      0 => ('Senha fraca', AppColors.danger),
-      1 => ('Senha média', AppColors.warning),
-      _ => ('Senha forte', AppColors.mint),
-    };
-    return Semantics(
-      liveRegion: true,
-      label: label,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 10, left: 4, right: 4),
-        child: Row(
-          children: [
-            for (var i = 0; i < 3; i++)
-              Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: 6,
-                  margin: const EdgeInsets.only(right: 6),
-                  decoration: BoxDecoration(
-                    color: i <= score ? color : color.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-              ),
-            const SizedBox(width: 6),
-            Text(label, style: context.text.labelSmall?.copyWith(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      liveRegion: true,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.danger.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(AppTheme.radiusS),
-          border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline_rounded, color: AppColors.danger),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message, style: context.text.bodyMedium)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// "Ao continuar, você concorda com..." com links para os documentos.
 class _ConsentText extends StatelessWidget {
   const _ConsentText();
@@ -666,7 +471,7 @@ class _ConsentText extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       onTap: () => LegalView.open(context, doc),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
         child: Text(
           text,
           style: style?.copyWith(
@@ -691,4 +496,52 @@ class _ConsentText extends StatelessWidget {
       ],
     );
   }
+}
+
+// =============================================================================
+// Fundo
+// =============================================================================
+
+/// Piso em grade com perspectiva, no estilo "synthwave" discreto.
+class _GridPainter extends CustomPainter {
+  const _GridPainter(this.color, this.opacity);
+
+  final Color color;
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final horizon = size.height * 0.52;
+    final vanish = Offset(size.width / 2, horizon);
+    final floor = Rect.fromLTRB(0, horizon, size.width, size.height);
+
+    // Esmaece da linha do horizonte (invisível) para a base (visível).
+    final fade = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        color.withValues(alpha: 0),
+        color.withValues(alpha: opacity),
+      ],
+    ).createShader(floor);
+
+    final paint = Paint()
+      ..shader = fade
+      ..strokeWidth = 1;
+
+    // Linhas horizontais: espaçamento cresce com a proximidade.
+    for (var i = 1; i <= 12; i++) {
+      final y = horizon + floor.height * math.pow(i / 12, 2.1);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    // Linhas que convergem para o ponto de fuga.
+    for (var k = -9; k <= 9; k++) {
+      final x = size.width / 2 + k * size.width / 6;
+      canvas.drawLine(vanish, Offset(x, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) =>
+      old.color != color || old.opacity != opacity;
 }
