@@ -63,7 +63,7 @@ class CategoryFilterBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           _chip(context, null, 'Todos'),
-          for (final c in ItemCategory.values) _chip(context, c, '${c.emoji} ${c.label}'),
+          for (final c in ItemCategory.values) _chip(context, c, c.label),
         ],
       ),
     );
@@ -74,6 +74,8 @@ class CategoryFilterBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
+        // Emoji no slot de avatar (tamanho fixo): o rótulo nunca é cortado.
+        avatar: c == null ? null : Text(c.emoji),
         label: Text(label),
         selected: isSelected,
         showCheckmark: false,

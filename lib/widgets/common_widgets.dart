@@ -95,6 +95,8 @@ class PremiumBadge extends StatelessWidget {
       ),
       child: Text(
         '$label ✨',
+        maxLines: 1,
+        softWrap: false,
         style: (compact ? context.text.labelSmall : context.text.labelMedium)
             ?.copyWith(color: AppColors.petroleum, fontWeight: FontWeight.w800),
       ),

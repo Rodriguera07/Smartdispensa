@@ -1,10 +1,13 @@
-import 'dart:isolate';
-
+import 'package:flutter/foundation.dart' show compute;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/receipt_item.dart';
 import 'receipt_parser.dart';
+
+/// Função de topo (exigência do `compute`) que roda dentro do isolate.
+ReceiptScanResult parseOcrLines(List<OcrLine> lines) =>
+    const ReceiptParser().parse(ReceiptParser.buildRows(lines));
 
 /// Leitura de notas fiscais 100% **offline e gratuita**.
 ///
@@ -58,11 +61,9 @@ class OcrService {
       return const ReceiptScanResult(items: []);
     }
 
-    // Parsing pesado (regex sobre dezenas/centenas de linhas) fora da UI.
-    return Isolate.run(
-      () => const ReceiptParser().parse(ReceiptParser.buildRows(lines)),
-      debugName: 'receipt-parser',
-    );
+    // Parsing pesado (regex sobre dezenas/centenas de linhas) fora da UI:
+    // `compute` executa em um isolate separado no Android.
+    return compute(parseOcrLines, lines, debugLabel: 'receipt-parser');
   }
 
   /// Libera os recursos nativos do ML Kit.

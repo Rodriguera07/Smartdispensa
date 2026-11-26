@@ -282,7 +282,9 @@ class _ComparisonTable extends StatelessWidget {
             const SizedBox.shrink(),
             Text('Grátis',
                 textAlign: TextAlign.center, style: context.text.titleSmall),
-            const Center(child: PremiumBadge(compact: true)),
+            const Center(
+              child: FittedBox(child: PremiumBadge(compact: true)),
+            ),
           ]),
           for (final r in _rows)
             TableRow(children: [

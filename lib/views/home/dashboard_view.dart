@@ -206,31 +206,81 @@ class _SummaryRow extends StatelessWidget {
                   Padding(padding: const EdgeInsets.only(bottom: 10), child: c),
               ],
             )
-          : IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: cards[0]),
-                  const SizedBox(width: 10),
-                  Expanded(child: cards[1]),
-                  const SizedBox(width: 10),
-                  Expanded(flex: 2, child: cards[2]),
-                ],
-              ),
+          : Column(
+              children: [
+                // Gasto do mês em destaque, largura total.
+                _SummaryCard(
+                  icon: Icons.payments_rounded,
+                  color: AppColors.cyan,
+                  label: 'Gasto no Mês',
+                  value: Fmt.currency(pantry.monthSpend),
+                  caption: Fmt.monthYear(DateTime.now()),
+                  wide: true,
+                ),
+                const SizedBox(height: 10),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: cards[0]),
+                      const SizedBox(width: 10),
+                      Expanded(child: cards[1]),
+                    ],
+                  ),
+                ),
+              ],
             ),
     );
   }
 }
 
 class _SummaryCard extends StatelessWidget {
+  Widget _wideLayout(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: color, size: 28),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: context.text.labelMedium),
+              Text(caption, style: context.text.bodySmall),
+            ],
+          ),
+        ),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: context.text.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   const _SummaryCard({
     required this.icon,
     required this.color,
     required this.label,
     required this.value,
     required this.caption,
+    this.wide = false,
   });
 
+  /// Layout horizontal, para o card em largura total.
+  final bool wide;
   final IconData icon;
   final Color color;
   final String label;
@@ -243,7 +293,7 @@ class _SummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       semanticLabel: '$label: $value $caption',
       child: ExcludeSemantics(
-        child: Column(
+        child: wide ? _wideLayout(context) : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(

@@ -31,7 +31,18 @@ import 'views/splash/splash_view.dart';
 /// enxerguem. São recriados a cada login (chave = uid) e descartados no
 /// logout, o que fecha os listeners do Firestore automaticamente.
 class SmartDispensaApp extends StatelessWidget {
-  const SmartDispensaApp({super.key});
+  const SmartDispensaApp({
+    super.key,
+    this.firebase,
+    this.ocr,
+    this.subscriptions,
+  });
+
+  /// Serviços injetáveis (testes e modo demonstração). Quando `null`,
+  /// usa as implementações reais.
+  final FirebaseService? firebase;
+  final OcrService? ocr;
+  final SubscriptionService? subscriptions;
 
   static final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -39,12 +50,12 @@ class SmartDispensaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider(create: (_) => FirebaseService()),
+        Provider(create: (_) => firebase ?? FirebaseService()),
         Provider(
-          create: (_) => OcrService(),
+          create: (_) => ocr ?? OcrService(),
           dispose: (_, s) => s.dispose(),
         ),
-        Provider(create: (_) => SubscriptionService()),
+        Provider(create: (_) => subscriptions ?? SubscriptionService()),
         ChangeNotifierProvider(create: (_) => ThemeViewModel()),
         ChangeNotifierProvider(
           create: (c) => AuthViewModel(
