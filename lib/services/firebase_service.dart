@@ -116,6 +116,64 @@ class FirebaseService {
 
   Future<void> signOut() => _auth.signOut();
 
+  // ---------------------------------------------------------------------------
+  // Exclusão de conta (exigência do Google Play e direito da LGPD)
+  // ---------------------------------------------------------------------------
+
+  /// `true` se a conta usa e-mail e senha (pede a senha para confirmar).
+  /// Caso contrário, a confirmação é feita com o Google.
+  bool get usesPasswordSignIn =>
+      _auth.currentUser?.providerData.any((p) => p.providerId == 'password') ??
+      false;
+
+  /// O Firebase só permite excluir a conta com um login recente: confirmamos
+  /// a identidade antes de apagar qualquer dado.
+  Future<void> reauthenticate({String? password}) => _guard(() async {
+        final user = _auth.currentUser;
+        if (user == null) throw const AuthFailure('Sessão expirada. Entre de novo.');
+        if (password != null) {
+          await user.reauthenticateWithCredential(
+            EmailAuthProvider.credential(email: user.email!, password: password),
+          );
+        } else {
+          await user.reauthenticateWithProvider(GoogleAuthProvider());
+        }
+      });
+
+  /// Apaga **todos** os dados do usuário e, por fim, a conta de acesso.
+  ///
+  /// Diferente das outras escritas, aqui **aguardamos o servidor**: a
+  /// exclusão precisa de internet e só confirmamos ao usuário quando tudo
+  /// foi realmente apagado.
+  Future<void> deleteAccountAndData() => _guard(() async {
+        final user = _auth.currentUser;
+        if (user == null) throw const AuthFailure('Sessão expirada. Entre de novo.');
+        final uid = user.uid;
+
+        try {
+          for (final col in [_pantry(uid), _shopping(uid), _purchases(uid)]) {
+            // Lê do servidor (e não do cache) para não deixar nada para trás.
+            final snap = await col.get(const GetOptions(source: Source.server));
+            for (var i = 0; i < snap.docs.length; i += _batchLimit) {
+              final batch = _db.batch();
+              for (final d in snap.docs.skip(i).take(_batchLimit)) {
+                batch.delete(d.reference);
+              }
+              await batch.commit();
+            }
+          }
+          await _userDoc(uid).delete();
+        } on FirebaseException catch (e) {
+          throw AuthFailure(e.code == 'unavailable'
+              ? 'Sem conexão. Conecte-se à internet para excluir a conta.'
+              : 'Não foi possível apagar seus dados agora (${e.code}). '
+                  'Tente novamente.');
+        }
+
+        await user.delete();
+        await _db.clearPersistence().catchError((_) {});
+      });
+
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {
       return await action();
@@ -137,6 +195,9 @@ class FirebaseService {
           'Muitas tentativas. Aguarde um pouco e tente de novo.',
         'network-request-failed' =>
           'Sem conexão. Verifique sua internet para entrar.',
+        'requires-recent-login' =>
+          'Por segurança, confirme sua identidade novamente.',
+        'user-mismatch' => 'Use a mesma conta Google com que você entrou.',
         'web-context-canceled' ||
         'canceled' ||
         'popup-closed-by-user' =>

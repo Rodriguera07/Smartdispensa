@@ -212,6 +212,23 @@ class DemoFirebaseService implements FirebaseService {
   @override
   Future<void> ensureUserDocument(User user, {String? name}) async {}
 
+  @override
+  bool get usesPasswordSignIn => true;
+
+  @override
+  Future<void> reauthenticate({String? password}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+  }
+
+  @override
+  Future<void> deleteAccountAndData() async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    _pantry.value = const [];
+    _shopping.value = const [];
+    _purchases.value = const [];
+    _user.value = null;
+  }
+
   // ---------------------------------------------------------------------------
   // Perfil
   // ---------------------------------------------------------------------------

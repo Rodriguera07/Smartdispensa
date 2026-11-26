@@ -15,7 +15,8 @@ service cloud.firestore {
         // A cota de scans só pode subir de 1 em 1 (ou reiniciar no mês novo).
         && (!('scanCount' in request.resource.data)
             || request.resource.data.scanCount is int);
-      allow delete: if false;
+      // Exclusão de conta (LGPD art. 18 / política do Google Play).
+      allow delete: if isOwner(uid);
 
       match /pantry/{itemId} {
         allow read, write: if isOwner(uid)
@@ -29,8 +30,8 @@ service cloud.firestore {
       }
 
       match /purchases/{purchaseId} {
-        allow read, create: if isOwner(uid);
-        allow update, delete: if false; // histórico é imutável
+        allow read, create, delete: if isOwner(uid); // delete: exclusão de conta
+        allow update: if false; // histórico não é editável
       }
     }
   }

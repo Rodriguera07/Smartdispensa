@@ -1,0 +1,10 @@
+{
+  "_comentario": "Preencha os campos marcados com PREENCHER antes de publicar. Esses valores entram nas telas do app e nas páginas web (dart run tool/build_legal_pages.dart).",
+  "APP_NAME": "Smart Dispensa",
+  "DEVELOPER": "PREENCHER: seu nome completo ou razão social",
+  "DEVELOPER_DOC": "PREENCHER: CPF ou CNPJ (opcional para pessoa física)",
+  "CITY": "PREENCHER: cidade/UF do foro",
+  "EMAIL": "PREENCHER: e-mail de suporte e privacidade",
+  "PACKAGE": "br.com.smartdispensa.smart_dispensa",
+  "UPDATED_AT": "26 de novembro de 2026"
+}

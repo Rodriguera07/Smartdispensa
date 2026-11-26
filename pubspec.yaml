@@ -50,6 +50,7 @@ dependencies:
   flutter_local_notifications: ^23.0.4
   timezone: ^0.11.2
   flutter_timezone: ^5.1.1
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +73,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Documentos legais (Política de Privacidade, Termos...) exibidos no app.
+  assets:
+    - assets/legal/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

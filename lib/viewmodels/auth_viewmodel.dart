@@ -4,16 +4,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../services/firebase_service.dart';
+import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
 
 /// Estado de autenticação + ações de login/cadastro.
 class AuthViewModel extends ChangeNotifier {
-  AuthViewModel(this._firebase, this._subscriptions) {
+  AuthViewModel(this._firebase, this._subscriptions, [this._notifications]) {
     _sub = _firebase.authStateChanges().listen(_onAuthChanged);
   }
 
   final FirebaseService _firebase;
   final SubscriptionService _subscriptions;
+  final NotificationService? _notifications;
   late final StreamSubscription<User?> _sub;
 
   User? _user;
@@ -71,9 +73,24 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    // Lembretes são do usuário: não podem continuar disparando para outra
+    // pessoa que entrar no mesmo aparelho.
+    await _notifications?.cancelAll();
     await _subscriptions.logOut();
     await _firebase.signOut();
   }
+
+  /// A conta usa senha (confirmação por senha) ou Google (confirmação Google).
+  bool get usesPasswordSignIn => _firebase.usesPasswordSignIn;
+
+  /// Confirma a identidade e exclui a conta com todos os dados.
+  /// Retorna `true` em caso de sucesso; a mensagem de erro fica em [error].
+  Future<bool> deleteAccount({String? password}) => _run(() async {
+        await _firebase.reauthenticate(password: password);
+        await _firebase.deleteAccountAndData();
+        await _notifications?.cancelAll();
+        await _subscriptions.logOut();
+      });
 
   Future<bool> _run(Future<void> Function() action) async {
     _busy = true;

@@ -155,11 +155,61 @@ flutter pub get
 flutter analyze
 flutter test
 ```
-São 21 testes, cobrindo:
+São 39 testes, cobrindo:
 - o parser de cupons (linha única, unidade antes da quantidade, itens a granel, atacarejo em 2 linhas,
   correção de "O"→"0" e reconstrução de colunas do OCR);
 - relatórios, categorias e formatação;
+- lembretes e "Montar compra do mês" (datas, planejador e texto da notificação);
+- documentos legais (leitura e variáveis preenchidas);
 - teste de fumaça do paywall, incluindo tela pequena com fonte ampliada.
+
+### 5. Modo demonstração (sem Firebase)
+```bash
+flutter run -d chrome -t lib/preview/main_preview.dart
+```
+
+---
+
+## ⚖️ Documentos legais e exigências do Google Play
+
+O app já inclui:
+- **Política de Privacidade** (LGPD);
+- **Termos de Uso**, com teste grátis, renovação, cancelamento e reembolso (art. 49 do CDC);
+- **Como cancelar a assinatura**;
+- **Excluir conta e dados**.
+
+Todos ficam em `assets/legal/*.md`, de onde saem as telas do app (Perfil › Privacidade e suporte, links no login e no paywall) **e** as páginas web públicas.
+
+A exclusão de conta exigida pelo Google Play também está pronta: **Perfil › Excluir minha conta** confirma a identidade e apaga todos os dados e a conta.
+
+### 1. Preencha seus dados
+Edite `assets/legal/config.json` (campos marcados com `PREENCHER`):
+- `DEVELOPER`: seu nome completo ou razão social
+- `DEVELOPER_DOC`: CPF/CNPJ (opcional para pessoa física)
+- `EMAIL`: e-mail de suporte e privacidade
+- `CITY`: cidade/UF do foro
+
+### 2. Gere as páginas web
+```bash
+dart run tool/build_legal_pages.dart   # gera docs/*.html
+```
+
+### 3. Publique de graça no Firebase Hosting
+```bash
+npm install -g firebase-tools
+firebase login
+firebase use --add                     # escolha o seu projeto
+firebase deploy --only hosting,firestore:rules
+```
+
+### 4. Links para o Google Play Console
+| Campo no Play Console | URL |
+|---|---|
+| Política de privacidade | `https://SEU-PROJETO.web.app/privacidade.html` |
+| Exclusão de conta (Segurança dos dados) | `https://SEU-PROJETO.web.app/excluir-conta.html` |
+| Termos (descrição da assinatura) | `https://SEU-PROJETO.web.app/termos.html` |
+
+> Os textos foram escritos com base na LGPD, no CDC e nas políticas do Google Play, mas **não substituem a revisão de um advogado**. Revise antes de publicar.
 
 ---
 

@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/legal/legal_markdown.dart';
+import '../../core/legal/legal_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -10,6 +12,8 @@ import '../../viewmodels/theme_viewmodel.dart';
 import '../../viewmodels/user_viewmodel.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/glass_card.dart';
+import '../legal/delete_account_view.dart';
+import '../legal/legal_view.dart';
 import '../paywall/paywall_view.dart';
 import 'reminder_settings_card.dart';
 
@@ -41,6 +45,20 @@ class ProfileView extends StatelessWidget {
       await context.read<AuthViewModel>().signOut();
     }
   }
+
+  Future<void> _openPlay(BuildContext context) async {
+    final ok = await LegalRepository.openPlaySubscriptions();
+    if (!ok && context.mounted) {
+      LegalView.open(context, LegalDoc.cancel);
+    }
+  }
+
+  Widget _legalTile(BuildContext context, IconData icon, LegalDoc doc) => ListTile(
+        leading: Icon(icon),
+        title: Text(doc.title),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => LegalView.open(context, doc),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -171,16 +189,55 @@ class ProfileView extends StatelessWidget {
                   },
                 ),
                 const Divider(indent: 16, endIndent: 16),
-                const ListTile(
-                  leading: Icon(Icons.manage_accounts_rounded),
-                  title: Text('Gerenciar assinatura'),
-                  subtitle: Text('Google Play › Pagamentos e assinaturas'),
+                const Divider(indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.manage_accounts_rounded),
+                  title: const Text('Gerenciar ou cancelar assinatura'),
+                  subtitle: const Text('Abre o Google Play'),
+                  trailing: const Icon(Icons.open_in_new_rounded, size: 20),
+                  onTap: () => _openPlay(context),
                 ),
                 const Divider(indent: 16, endIndent: 16),
                 ListTile(
-                  leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
+                  leading: const Icon(Icons.logout_rounded),
                   title: const Text('Sair'),
                   onTap: () => _signOut(context),
+                ),
+              ],
+            ),
+          ),
+          const SectionHeader(title: 'Privacidade e suporte'),
+          GlassCard(
+            blur: false,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              children: [
+                _legalTile(context, Icons.privacy_tip_rounded, LegalDoc.privacy),
+                const Divider(indent: 16, endIndent: 16),
+                _legalTile(context, Icons.gavel_rounded, LegalDoc.terms),
+                const Divider(indent: 16, endIndent: 16),
+                _legalTile(context, Icons.event_busy_rounded, LegalDoc.cancel),
+                const Divider(indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.support_agent_rounded),
+                  title: const Text('Fale conosco'),
+                  subtitle: const Text('Dúvidas, reembolso ou seus dados (LGPD)'),
+                  onTap: () async {
+                    final ok = await LegalRepository.emailSupport();
+                    if (!ok && context.mounted) {
+                      showAppSnack(context, 'Não foi possível abrir o e-mail.',
+                          icon: Icons.info_rounded);
+                    }
+                  },
+                ),
+                const Divider(indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever_rounded,
+                      color: AppColors.danger),
+                  title: const Text('Excluir minha conta',
+                      style: TextStyle(color: AppColors.danger)),
+                  subtitle: const Text('Apaga a conta e todos os seus dados'),
+                  onTap: () => DeleteAccountView.open(context),
                 ),
               ],
             ),

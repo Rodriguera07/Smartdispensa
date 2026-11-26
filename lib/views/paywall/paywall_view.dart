@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/legal/legal_markdown.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/subscription_service.dart';
@@ -10,6 +11,7 @@ import '../../viewmodels/subscription_viewmodel.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/gradient_background.dart';
+import '../legal/legal_view.dart';
 
 /// Paywall "Smart Dispensa Premium ✨".
 class PaywallView extends StatefulWidget {
@@ -165,9 +167,24 @@ class _PaywallViewState extends State<PaywallView> {
                       textAlign: TextAlign.center,
                       style: context.text.bodySmall,
                     ),
-                    TextButton(
-                      onPressed: vm.purchasing ? null : _restore,
-                      child: const Text('Restaurar compras'),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: vm.purchasing ? null : _restore,
+                          child: const Text('Restaurar compras'),
+                        ),
+                        TextButton(
+                          onPressed: () => LegalView.open(context, LegalDoc.terms),
+                          child: const Text('Termos'),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              LegalView.open(context, LegalDoc.privacy),
+                          child: const Text('Privacidade'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

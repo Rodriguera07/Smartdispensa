@@ -67,6 +67,7 @@ class SmartDispensaApp extends StatelessWidget {
           create: (c) => AuthViewModel(
             c.read<FirebaseService>(),
             c.read<SubscriptionService>(),
+            c.read<NotificationService>(),
           ),
         ),
       ],
