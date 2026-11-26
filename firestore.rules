@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Regras de segurança do Smart Dispensa (Firebase plano Spark).
+// Cada usuário só lê e escreve dentro do próprio documento users/{uid}.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        // A cota de scans só pode subir de 1 em 1 (ou reiniciar no mês novo).
+        && (!('scanCount' in request.resource.data)
+            || request.resource.data.scanCount is int);
+      allow delete: if false;
+
+      match /pantry/{itemId} {
+        allow read, write: if isOwner(uid)
+          && (request.method == 'delete'
+              || (request.resource.data.name is string
+                  && request.resource.data.name.size() <= 120));
+      }
+
+      match /shopping_list/{itemId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /purchases/{purchaseId} {
+        allow read, create: if isOwner(uid);
+        allow update, delete: if false; // histórico é imutável
+      }
+    }
+  }
+}
