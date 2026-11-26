@@ -13,6 +13,7 @@ import '../models/item_category.dart';
 import '../models/pantry_item.dart';
 import '../models/purchase_record.dart';
 import '../models/receipt_item.dart';
+import '../models/reminder_settings.dart';
 import '../models/shopping_item.dart';
 import '../models/user_profile.dart';
 import '../services/firebase_service.dart';
@@ -87,6 +88,7 @@ class DemoFirebaseService implements FirebaseService {
       email: 'ana@exemplo.com',
       scanPeriod: monthKey(DateTime.now()),
       scanCount: 1,
+      reminders: const ReminderSettings(startEnabled: true, startDay: 5),
     );
 
     PantryItem p(String name, ItemCategory c, double q, double ideal,
@@ -218,16 +220,16 @@ class DemoFirebaseService implements FirebaseService {
   Stream<UserProfile> watchProfile(String uid) => _profile.stream;
 
   @override
-  void updatePreferences(String uid, {bool? autoSendToList, bool? darkMode}) {
-    final p = _profile.value;
-    _profile.value = UserProfile(
-      uid: p.uid,
-      name: p.name,
-      email: p.email,
-      autoSendToList: autoSendToList ?? p.autoSendToList,
-      darkMode: darkMode ?? p.darkMode,
-      scanPeriod: p.scanPeriod,
-      scanCount: p.scanCount,
+  void updatePreferences(
+    String uid, {
+    bool? autoSendToList,
+    bool? darkMode,
+    ReminderSettings? reminders,
+  }) {
+    _profile.value = _profile.value.copyWith(
+      autoSendToList: autoSendToList,
+      darkMode: darkMode,
+      reminders: reminders,
     );
   }
 
@@ -235,12 +237,7 @@ class DemoFirebaseService implements FirebaseService {
   void registerScan(String uid, UserProfile profile) {
     final p = _profile.value;
     final period = monthKey(DateTime.now());
-    _profile.value = UserProfile(
-      uid: p.uid,
-      name: p.name,
-      email: p.email,
-      autoSendToList: p.autoSendToList,
-      darkMode: p.darkMode,
+    _profile.value = p.copyWith(
       scanPeriod: period,
       scanCount: p.scanPeriod == period ? p.scanCount + 1 : 1,
     );

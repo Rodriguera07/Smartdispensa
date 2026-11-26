@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'services/firebase_service.dart';
+import 'services/notification_service.dart';
 import 'services/ocr_service.dart';
 import 'services/subscription_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/pantry_viewmodel.dart';
+import 'viewmodels/reminder_viewmodel.dart';
 import 'viewmodels/shopping_list_viewmodel.dart';
 import 'viewmodels/subscription_viewmodel.dart';
 import 'viewmodels/theme_viewmodel.dart';
@@ -24,7 +26,8 @@ import 'views/splash/splash_view.dart';
 /// Serviços (singletons)       FirebaseService · OcrService · SubscriptionService
 /// Globais                     ThemeViewModel · AuthViewModel
 /// Sessão (por usuário logado) UserViewModel · SubscriptionViewModel ·
-///                             PantryViewModel · ShoppingListViewModel
+///                             PantryViewModel · ShoppingListViewModel ·
+///                             ReminderViewModel
 /// ```
 /// Os providers de sessão ficam no `builder` do MaterialApp — **acima do
 /// Navigator** — para que rotas empilhadas (Scanner, Paywall...) também os
@@ -36,6 +39,7 @@ class SmartDispensaApp extends StatelessWidget {
     this.firebase,
     this.ocr,
     this.subscriptions,
+    this.notifications,
   });
 
   /// Serviços injetáveis (testes e modo demonstração). Quando `null`,
@@ -43,6 +47,7 @@ class SmartDispensaApp extends StatelessWidget {
   final FirebaseService? firebase;
   final OcrService? ocr;
   final SubscriptionService? subscriptions;
+  final NotificationService? notifications;
 
   static final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -56,6 +61,7 @@ class SmartDispensaApp extends StatelessWidget {
           dispose: (_, s) => s.dispose(),
         ),
         Provider(create: (_) => subscriptions ?? SubscriptionService()),
+        Provider(create: (_) => notifications ?? NotificationService()),
         ChangeNotifierProvider(create: (_) => ThemeViewModel()),
         ChangeNotifierProvider(
           create: (c) => AuthViewModel(
@@ -127,6 +133,17 @@ class _SessionScope extends StatelessWidget {
             uid: user.uid,
             firebase: c.read<FirebaseService>(),
             pantry: c.read<PantryViewModel>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          // lazy: false → começa a reagendar os lembretes assim que o
+          // usuário entra, mesmo sem abrir a tela de perfil.
+          lazy: false,
+          create: (c) => ReminderViewModel(
+            user: c.read<UserViewModel>(),
+            pantry: c.read<PantryViewModel>(),
+            shopping: c.read<ShoppingListViewModel>(),
+            notifications: c.read<NotificationService>(),
           ),
         ),
       ],

@@ -8,9 +8,11 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/item_category.dart';
 import '../../models/shopping_item.dart';
+import '../../viewmodels/reminder_viewmodel.dart';
 import '../../viewmodels/shopping_list_viewmodel.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/glass_card.dart';
+import 'monthly_plan_sheet.dart';
 
 /// Lista de Compras Inteligente & Interativa.
 class ShoppingListView extends StatelessWidget {
@@ -142,6 +144,7 @@ class ShoppingListView extends StatelessWidget {
                   ),
                 ),
               ),
+              const SliverToBoxAdapter(child: _MonthlyPlanCard()),
               const SliverToBoxAdapter(child: _QuickAddField()),
               SliverToBoxAdapter(
                 child: Padding(
@@ -263,6 +266,61 @@ class ShoppingListView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Compra do mês
+// =============================================================================
+
+class _MonthlyPlanCard extends StatelessWidget {
+  const _MonthlyPlanCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final reminder = context.watch<ReminderViewModel>();
+    final next = reminder.nextReminder;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: GlassCard(
+        onTap: () => MonthlyPlanSheet.show(context),
+        borderColor: AppColors.mint.withValues(alpha: 0.45),
+        gradient: LinearGradient(colors: [
+          AppColors.mint.withValues(alpha: 0.16),
+          AppColors.cyan.withValues(alpha: 0.06),
+        ]),
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.event_repeat_rounded,
+                  color: AppColors.petroleum, size: 26),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Montar compra do mês', style: context.text.titleMedium),
+                  Text(
+                    next != null
+                        ? 'Próximo lembrete: ${Fmt.dayMonth(next)}'
+                        : 'O que falta + repetir o mês passado',
+                    style: context.text.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
       ),
     );
   }

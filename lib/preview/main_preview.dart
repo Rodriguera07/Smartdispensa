@@ -11,11 +11,13 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../app.dart';
+import '../core/theme/app_theme.dart';
 import 'demo_services.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR');
+  await AppTheme.preloadFonts();
 
   final params = Uri.base.queryParameters;
   final firebase = DemoFirebaseService(signedIn: params['screen'] != 'login');

@@ -17,6 +17,22 @@ abstract final class AppTheme {
   static const double radiusM = 18;
   static const double radiusL = 26;
 
+  /// Baixa (ou lê do cache) as fontes do tema **antes** da primeira tela.
+  ///
+  /// Sem isso, textos medidos com a fonte provisória (ex.: chips) podem
+  /// ficar cortados quando a fonte definitiva chega. Limite de 2s para não
+  /// atrasar a abertura em aparelhos offline (aí usa a fonte do sistema).
+  static Future<void> preloadFonts() async {
+    // Montar os temas registra o download de todos os pesos usados.
+    dark;
+    light;
+    try {
+      await GoogleFonts.pendingFonts().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // Offline ou lento: segue com a fonte padrão.
+    }
+  }
+
   static ThemeData get dark => _build(Brightness.dark);
   static ThemeData get light => _build(Brightness.light);
 

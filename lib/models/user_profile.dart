@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../core/utils/formatters.dart';
+import 'reminder_settings.dart';
 
 /// Perfil e preferências do usuário.
 ///
@@ -14,6 +15,7 @@ class UserProfile {
     this.darkMode = true,
     this.scanPeriod,
     this.scanCount = 0,
+    this.reminders = const ReminderSettings(),
   });
 
   final String uid;
@@ -30,6 +32,9 @@ class UserProfile {
   final String? scanPeriod;
   final int scanCount;
 
+  /// Lembretes de compra do mês.
+  final ReminderSettings reminders;
+
   /// Scans usados no mês corrente (zera automaticamente na virada do mês).
   int scansUsedThisMonth([DateTime? now]) =>
       scanPeriod == monthKey(now ?? DateTime.now()) ? scanCount : 0;
@@ -38,6 +43,26 @@ class UserProfile {
     final n = (name ?? '').trim();
     if (n.isEmpty) return '';
     return n.split(' ').first;
+  }
+
+  UserProfile copyWith({
+    String? name,
+    bool? autoSendToList,
+    bool? darkMode,
+    String? scanPeriod,
+    int? scanCount,
+    ReminderSettings? reminders,
+  }) {
+    return UserProfile(
+      uid: uid,
+      name: name ?? this.name,
+      email: email,
+      autoSendToList: autoSendToList ?? this.autoSendToList,
+      darkMode: darkMode ?? this.darkMode,
+      scanPeriod: scanPeriod ?? this.scanPeriod,
+      scanCount: scanCount ?? this.scanCount,
+      reminders: reminders ?? this.reminders,
+    );
   }
 
   factory UserProfile.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -50,6 +75,9 @@ class UserProfile {
       darkMode: (d['darkMode'] as bool?) ?? true,
       scanPeriod: d['scanPeriod'] as String?,
       scanCount: (d['scanCount'] as num?)?.toInt() ?? 0,
+      reminders: ReminderSettings.fromMap(
+        (d['reminders'] as Map?)?.cast<String, dynamic>(),
+      ),
     );
   }
 }

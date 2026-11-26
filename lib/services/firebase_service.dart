@@ -8,6 +8,7 @@ import '../core/utils/formatters.dart';
 import '../models/item_category.dart';
 import '../models/pantry_item.dart';
 import '../models/purchase_record.dart';
+import '../models/reminder_settings.dart';
 import '../models/shopping_item.dart';
 import '../models/user_profile.dart';
 
@@ -170,10 +171,16 @@ class FirebaseService {
   Stream<UserProfile> watchProfile(String uid) =>
       _userDoc(uid).snapshots().map(UserProfile.fromDoc);
 
-  void updatePreferences(String uid, {bool? autoSendToList, bool? darkMode}) {
+  void updatePreferences(
+    String uid, {
+    bool? autoSendToList,
+    bool? darkMode,
+    ReminderSettings? reminders,
+  }) {
     _fire(_userDoc(uid).set({
       'autoSendToList': ?autoSendToList,
       'darkMode': ?darkMode,
+      'reminders': ?reminders?.toMap(),
     }, SetOptions(merge: true)));
   }
 

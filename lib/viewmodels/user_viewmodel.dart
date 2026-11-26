@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/constants/app_constants.dart';
+import '../models/reminder_settings.dart';
 import '../models/user_profile.dart';
 import '../services/firebase_service.dart';
 import 'theme_viewmodel.dart';
@@ -29,15 +30,7 @@ class UserViewModel extends ChangeNotifier {
   void _onProfile(UserProfile p) {
     // Mantém o nome do Auth enquanto o documento ainda não foi criado.
     _profile = p.name == null && _profile.name != null
-        ? UserProfile(
-            uid: p.uid,
-            name: _profile.name,
-            email: p.email,
-            autoSendToList: p.autoSendToList,
-            darkMode: p.darkMode,
-            scanPeriod: p.scanPeriod,
-            scanCount: p.scanCount,
-          )
+        ? p.copyWith(name: _profile.name)
         : p;
     _theme.setDark(_profile.darkMode);
     notifyListeners();
@@ -62,6 +55,13 @@ class UserViewModel extends ChangeNotifier {
 
   void setAutoSendToList(bool value) =>
       _firebase.updatePreferences(uid, autoSendToList: value);
+
+  /// Atualiza os lembretes da compra do mês (otimista: a UI responde na hora).
+  void setReminders(ReminderSettings value) {
+    _profile = _profile.copyWith(reminders: value);
+    notifyListeners();
+    _firebase.updatePreferences(uid, reminders: value);
+  }
 
   @override
   void dispose() {

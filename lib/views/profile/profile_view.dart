@@ -11,6 +11,7 @@ import '../../viewmodels/user_viewmodel.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/glass_card.dart';
 import '../paywall/paywall_view.dart';
+import 'reminder_settings_card.dart';
 
 /// Perfil, preferências e assinatura.
 class ProfileView extends StatelessWidget {
@@ -145,6 +146,8 @@ class ProfileView extends StatelessWidget {
               ],
             ),
           ),
+          const SectionHeader(title: 'Lembretes de compras'),
+          const ReminderSettingsCard(),
           const SectionHeader(title: 'Conta'),
           GlassCard(
             blur: false,

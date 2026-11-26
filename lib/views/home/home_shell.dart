@@ -2,12 +2,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/notification_service.dart';
 import '../../viewmodels/shopping_list_viewmodel.dart';
 import '../../widgets/common_widgets.dart' show ScanGlowFab;
 import '../../widgets/gradient_background.dart';
 import '../profile/profile_view.dart';
 import '../reports/reports_view.dart';
 import '../scanner/scanner_view.dart';
+import '../shopping/monthly_plan_sheet.dart';
 import '../shopping/shopping_list_view.dart';
 import 'dashboard_view.dart';
 
@@ -33,6 +35,35 @@ class _HomeShellState extends State<HomeShell> {
   ];
 
   void _go(int i) => setState(() => _index = i);
+
+  late final ValueNotifier<String?> _pending =
+      context.read<NotificationService>().pendingAction;
+
+  @override
+  void initState() {
+    super.initState();
+    _pending.addListener(_handleNotification);
+    // O app pode ter sido aberto por uma notificação antes desta tela existir.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleNotification());
+  }
+
+  @override
+  void dispose() {
+    _pending.removeListener(_handleNotification);
+    super.dispose();
+  }
+
+  /// Toque no lembrete mensal → aba Lista + folha "Montar compra do mês".
+  void _handleNotification() {
+    if (!mounted || _pending.value != NotificationService.actionMonthlyPlan) {
+      return;
+    }
+    _pending.value = null;
+    _go(1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) MonthlyPlanSheet.show(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

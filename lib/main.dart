@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'app.dart';
 import 'core/theme/app_theme.dart';
 import 'services/firebase_service.dart';
+import 'services/notification_service.dart';
 import 'widgets/common_widgets.dart';
 import 'widgets/gradient_background.dart';
 
@@ -20,6 +21,7 @@ Future<void> main() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   await initializeDateFormatting('pt_BR');
+  await AppTheme.preloadFonts();
 
   try {
     // Lê as credenciais de android/app/google-services.json.
@@ -30,7 +32,11 @@ Future<void> main() async {
     return;
   }
 
-  runApp(const SmartDispensaApp());
+  // Notificações locais: prepara o canal e captura um toque que abriu o app.
+  final notifications = NotificationService();
+  await notifications.init();
+
+  runApp(SmartDispensaApp(notifications: notifications));
 }
 
 /// Tela exibida se o Firebase não estiver configurado (ex.: falta o
